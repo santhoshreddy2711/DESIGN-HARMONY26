@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const { Pool } = require('pg');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 if (!fs.existsSync(DATA_DIR)) {
@@ -9,6 +10,66 @@ if (!fs.existsSync(DATA_DIR)) {
 
 // In-memory cache
 const dbCache = {};
+
+const usePostgres = !!process.env.DATABASE_URL;
+let pool = null;
+
+if (usePostgres) {
+  console.log('PostgreSQL database url detected. Initializing database pool...');
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
+} else {
+  console.log('No DATABASE_URL environment variable detected. Running database on local JSON files.');
+}
+
+// Helper to run background async queries
+async function pgInsert(table, record) {
+  const keys = Object.keys(record);
+  const columns = keys.map(k => `"${k}"`).join(', ');
+  const placeholders = keys.map((_, idx) => `$${idx + 1}`).join(', ');
+  const values = keys.map(k => {
+    const val = record[k];
+    if (val === undefined) return null;
+    if (k === 'timeline_milestones' || k === 'attendance_summary') {
+      return val ? JSON.stringify(val) : '[]';
+    }
+    return val;
+  });
+  
+  await pool.query(`INSERT INTO "${table}" (${columns}) VALUES (${placeholders})`, values);
+  
+  // Keep serial ID sequence in sync
+  try {
+    await pool.query(`SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 1))`);
+  } catch (seqErr) {
+    // Ignore sequence update errors for non-serial key tables
+  }
+}
+
+async function pgUpdate(table, id, updates) {
+  const keys = Object.keys(updates);
+  if (keys.length === 0) return;
+  const setClause = keys.map((k, idx) => `"${k}" = $${idx + 1}`).join(', ');
+  const values = keys.map(k => {
+    const val = updates[k];
+    if (val === undefined) return null;
+    if (k === 'timeline_milestones' || k === 'attendance_summary') {
+      return val ? JSON.stringify(val) : '[]';
+    }
+    return val;
+  });
+  values.push(parseInt(id));
+  
+  await pool.query(`UPDATE "${table}" SET ${setClause}, "updated_at" = CURRENT_TIMESTAMP WHERE id = $${values.length}`, values);
+}
+
+async function pgDelete(table, id) {
+  await pool.query(`DELETE FROM "${table}" WHERE id = $1`, [parseInt(id)]);
+}
 
 function getFilePath(table) {
   return path.join(DATA_DIR, `${table}.json`);
@@ -55,7 +116,7 @@ const db = {
     const list = readData(table);
     return list.filter(item => {
       for (const key in query) {
-        if (item[key] !== query[key]) return false;
+        if (item[key] != query[key]) return false;
       }
       return true;
     });
@@ -65,7 +126,7 @@ const db = {
     const list = readData(table);
     return list.find(item => {
       for (const key in query) {
-        if (item[key] !== query[key]) return false;
+        if (item[key] != query[key]) return false;
       }
       return true;
     }) || null;
@@ -86,6 +147,11 @@ const db = {
     };
     list.push(newRecord);
     writeData(table, list);
+    
+    if (usePostgres) {
+      pgInsert(table, newRecord).catch(err => console.error(`Async insert error on ${table}:`, err));
+    }
+    
     return newRecord;
   },
 
@@ -100,6 +166,11 @@ const db = {
     };
     list[index] = updated;
     writeData(table, list);
+    
+    if (usePostgres) {
+      pgUpdate(table, id, updates).catch(err => console.error(`Async update error on ${table}:`, err));
+    }
+    
     return updated;
   },
 
@@ -109,12 +180,36 @@ const db = {
     if (index === -1) return false;
     list.splice(index, 1);
     writeData(table, list);
+    
+    if (usePostgres) {
+      pgDelete(table, id).catch(err => console.error(`Async delete error on ${table}:`, err));
+    }
+    
     return true;
   },
 
   // Seed default data
   initialize: async () => {
-    console.log('Initializing database tables...');
+    console.log('Initializing database...');
+    
+    if (usePostgres) {
+      console.log('Loading database tables from Supabase PostgreSQL...');
+      const tables = [
+        'users', 'customers', 'projects', 'products', 'suppliers', 'inventory',
+        'quotations', 'quotation_items', 'orders', 'order_items',
+        'invoices', 'invoice_items', 'payments', 'employees', 'notifications'
+      ];
+      
+      for (const table of tables) {
+        try {
+          const res = await pool.query(`SELECT * FROM "${table}"`);
+          writeData(table, res.rows);
+          console.log(`Successfully synced ${res.rows.length} rows from Supabase "${table}"`);
+        } catch (err) {
+          console.error(`Error syncing table "${table}" from Supabase:`, err);
+        }
+      }
+    }
     
     // Seed Users
     const users = readData('users');
@@ -153,7 +248,7 @@ const db = {
       const defaultProducts = [
         { product_name: 'Royal Velvet Chesterfield Sofa', category: 'Sofa', material: 'Teak Wood & Velvet Fabric', dimensions: '84" W x 38" D x 33" H', price: 85000, quantity: 8, images: ['/images/sofa_chesterfield.webp'], description: 'A timeless Chesterfield sofa upholstered in premium royal blue velvet with deep button tufting and solid teak legs.' },
         { product_name: 'Minimalist Oak Dining Table', category: 'Dining Table', material: 'Solid Oak Wood', dimensions: '72" L x 36" W x 30" H', price: 62000, quantity: 4, images: ['/images/dining_table.webp'], description: 'Elegant and contemporary solid white oak dining table with a clear matte polyurethane finish.' },
-        { product_name: 'Mid-Century Modern Lounge Chair', category: 'Chair', material: 'Bentwood & Leather', dimensions: '32" W x 32" D x 33" H', price: 28000, quantity: 15, images: ['/images/lounge_chair.webp'], description: 'Classic mid-century lounge chair featuring premium black top-grain leather and molded walnut veneer shells.' },
+        { product_name: 'Mid-Century Modern Lounge Chair', category: 'Chair', material: 'Bentwood & Leather', dimensions: '32" W x 32" D x 33" h', price: 28000, quantity: 15, images: ['/images/lounge_chair.webp'], description: 'Classic mid-century lounge chair featuring premium black top-grain leather and molded walnut veneer shells.' },
         { product_name: 'Luxury Tufted King Bed', category: 'Bed', material: 'Engineered Wood & Linen', dimensions: '86" L x 80" W x 54" H', price: 78000, quantity: 3, images: ['/images/king_bed.webp'], description: 'A plush upholstered king bed with a tall diamond-tufted headboard in an off-white linen blend.' },
         { product_name: 'Executive Walnut Office Desk', category: 'Office Furniture', material: 'Walnut Wood & Powder-coated Steel', dimensions: '60" W x 30" D x 30" H', price: 45000, quantity: 2, images: ['/images/office_desk.webp'], description: 'Sleek executive desk featuring a solid walnut top and black metal legs with integrated cable management.' },
         { product_name: 'Brass Inlay Wall Panels', category: 'Interior Materials', material: 'MDF & Brass Inlays', dimensions: '8ft x 4ft sheets', price: 12000, quantity: 25, images: ['/images/brass_panels.webp'], description: 'Premium decorative wall paneling with geometric brass strip inlays, perfect for focal walls.' }
@@ -260,7 +355,7 @@ const db = {
 
         db.insert('order_items', {
           order_id: order1.id,
-          product_id: prods[0].id, // Royal Velvet Chesterfield Sofa
+          product_id: prods[0].id,
           product_name: prods[0].product_name,
           quantity: 2,
           unit_price: prods[0].price,
@@ -269,7 +364,7 @@ const db = {
 
         db.insert('order_items', {
           order_id: order1.id,
-          product_id: prods[2].id, // Mid-Century Modern Lounge Chair
+          product_id: prods[2].id,
           product_name: prods[2].product_name,
           quantity: 1,
           unit_price: prods[2].price,
