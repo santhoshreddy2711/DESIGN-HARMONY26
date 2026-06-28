@@ -36,10 +36,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const autofillCredentials = (roleEmail: string) => {
-    setEmail(roleEmail);
-    setPassword('Password123');
-  };
+
 
   return (
     <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -134,49 +131,7 @@ const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Demo Login Triggers */}
-          <div className="mt-8 pt-6 border-t border-zinc-800/80">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Select Demo Account Role</span>
-            <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-              <button 
-                type="button" 
-                onClick={() => autofillCredentials('admin@harmony.com')}
-                className="p-2 border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/50 text-zinc-300 rounded-lg text-left truncate transition"
-              >
-                <strong>Admin</strong>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => autofillCredentials('designer@harmony.com')}
-                className="p-2 border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/50 text-zinc-300 rounded-lg text-left truncate transition"
-              >
-                <strong>Designer</strong>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => autofillCredentials('sales@harmony.com')}
-                className="p-2 border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/50 text-zinc-300 rounded-lg text-left truncate transition"
-              >
-                <strong>Sales Executive</strong>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => autofillCredentials('accountant@harmony.com')}
-                className="p-2 border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/50 text-zinc-300 rounded-lg text-left truncate transition"
-              >
-                <strong>Accountant</strong>
-              </button>
-            </div>
-            <div className="mt-3 text-center">
-              <button 
-                type="button" 
-                onClick={() => autofillCredentials('inventory@harmony.com')}
-                className="px-4 py-1.5 border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/50 text-zinc-300 rounded-lg text-xs transition"
-              >
-                <strong>Inventory Manager</strong>
-              </button>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
