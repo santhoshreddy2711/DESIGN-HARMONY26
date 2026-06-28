@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
+import AIChatbot from './components/AIChatbot';
 
 // Page imports
 import Login from './pages/Login';
@@ -36,7 +37,7 @@ const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-darkbg text-slate-800 dark:text-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-darkbg text-slate-800 dark:text-slate-100 relative">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -48,6 +49,9 @@ const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children
           </div>
         </main>
       </div>
+      
+      {/* Floating AI Chatbot Assistant */}
+      <AIChatbot />
     </div>
   );
 };

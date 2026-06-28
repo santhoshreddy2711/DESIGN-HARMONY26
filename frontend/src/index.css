@@ -67,3 +67,91 @@
 .badge-status {
   @apply px-2.5 py-1 text-xs font-semibold rounded-full;
 }
+
+/* 3D Card Hover Effect */
+.card-3d {
+  transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), border-color 0.3s;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+.card-3d:hover {
+  transform: translateY(-6px) rotateX(3deg) rotateY(-1.5deg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03), 0 0 16px rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+.card-3d * {
+  transform-style: preserve-3d;
+}
+
+/* 3D Model Viewer CSS */
+.scene-3d {
+  width: 100%;
+  height: 320px;
+  perspective: 800px;
+  overflow: hidden;
+  background: #0f172a; /* Slate 900 background */
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.room-3d {
+  width: 200px;
+  height: 200px;
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease-out;
+}
+.grid-floor {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(212,175,55,0.15) 10%, transparent 10.5%);
+  background-size: 20px 20px;
+  border: 2px solid rgba(212, 175, 55, 0.3);
+  transform: rotateX(90deg) translateZ(-100px);
+}
+.wall-back {
+  position: absolute;
+  width: 200px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  transform: translateZ(-100px) translateY(-50px);
+}
+.wall-left {
+  position: absolute;
+  width: 200px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  transform: rotateY(90deg) translateZ(-100px) translateY(-50px);
+}
+/* Furniture 3D Cube */
+.furn-cube {
+  position: absolute;
+  width: 100px;
+  height: 60px;
+  transform-style: preserve-3d;
+  transform: translate3d(50px, -30px, 50px);
+}
+.furn-face {
+  position: absolute;
+  border: 1.5px solid rgba(212, 175, 55, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(212, 175, 55, 0.9);
+  transition: all 0.3s;
+}
+.furn-front  { width: 100px; height: 60px; transform: translateZ(40px); }
+.furn-back   { width: 100px; height: 60px; transform: rotateY(180deg) translateZ(40px); }
+.furn-left   { width: 80px; height: 60px; transform: rotateY(-90deg) translateZ(40px); left: 10px; }
+.furn-right  { width: 80px; height: 60px; transform: rotateY(90deg) translateZ(60px); left: 10px; }
+.furn-top    { width: 100px; height: 80px; transform: rotateX(90deg) translateZ(40px); top: -10px; }
+.furn-bottom { width: 100px; height: 80px; transform: rotateX(-90deg) translateZ(20px); top: -10px; }
+
+

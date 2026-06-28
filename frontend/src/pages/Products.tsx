@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Search, Plus, Edit2, Trash2, X, Tag, Sliders, Box } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface Product {
   id: number;
@@ -196,11 +197,19 @@ const Products: React.FC = () => {
       {/* Catalog Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map(prod => (
-          <div key={prod.id} className="bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition">
+          <div key={prod.id} className="card-3d bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between">
             
-            {/* Gallery Image placeholder or actual */}
-            <div className="h-44 bg-slate-100 dark:bg-slate-800 flex items-center justify-center relative border-b border-slate-100 dark:border-darkborder">
-              <span className="text-slate-300 font-serif text-lg tracking-widest uppercase font-bold">D & H DESIGN</span>
+            {/* Gallery Image */}
+            <div className="h-44 bg-slate-100 dark:bg-slate-800 flex items-center justify-center relative border-b border-slate-100 dark:border-darkborder overflow-hidden">
+              {prod.images && prod.images[0] ? (
+                <img 
+                  src={prod.images[0].startsWith('http') ? prod.images[0] : (prod.images[0].startsWith('/uploads') ? `${API_BASE_URL}${prod.images[0]}` : prod.images[0])} 
+                  alt={prod.product_name} 
+                  className="w-full h-full object-cover hover:scale-110 transition duration-500" 
+                />
+              ) : (
+                <span className="text-slate-300 font-serif text-lg tracking-widest uppercase font-bold">D & H DESIGN</span>
+              )}
               <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-slate-900/60 text-white text-[9px] font-semibold rounded uppercase tracking-wider">
                 {prod.category}
               </span>

@@ -60,6 +60,38 @@ const Projects: React.FC = () => {
     notes: ''
   });
 
+  // 3D Viewer State
+  const [show3DViewer, setShow3DViewer] = useState(false);
+  const [viewerTab, setViewerTab] = useState<'2d' | '3d'>('3d');
+  const [activeDesignImg, setActiveDesignImg] = useState('');
+  const [rotX, setRotX] = useState(25);
+  const [rotY, setRotY] = useState(-45);
+  const [zoom, setZoom] = useState(1);
+  const [wireframe, setWireframe] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [activeMaterial, setActiveMaterial] = useState<'wood' | 'fabric' | 'steel'>('wood');
+
+  useEffect(() => {
+    let interval: any;
+    if (show3DViewer && autoRotate && viewerTab === '3d') {
+      interval = setInterval(() => {
+        setRotY(y => (y + 1) % 360);
+      }, 40);
+    }
+    return () => clearInterval(interval);
+  }, [show3DViewer, autoRotate, viewerTab]);
+
+  const handleOpen3DViewer = (img: string) => {
+    setActiveDesignImg(img.startsWith('http') ? img : (img.startsWith('/uploads') ? `${API_BASE_URL}${img}` : img));
+    setViewerTab('3d');
+    setRotX(25);
+    setRotY(-45);
+    setWireframe(false);
+    setAutoRotate(true);
+    setActiveMaterial('wood');
+    setShow3DViewer(true);
+  };
+
   const loadProjects = async () => {
     try {
       const url = statusFilter ? `/projects?status=${statusFilter}` : '/projects';
@@ -391,9 +423,16 @@ const Projects: React.FC = () => {
               {selectedProject.designs?.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-2">
                   {selectedProject.designs.map((img, i) => (
-                    <a key={i} href={`${API_BASE_URL}${img}`} target="_blank" rel="noreferrer" className="block relative border border-slate-100 dark:border-darkborder rounded-lg overflow-hidden h-14 bg-slate-50">
-                      <img src={`${API_BASE_URL}${img}`} alt="Blueprint layout" className="w-full h-full object-cover" />
-                    </a>
+                    <div 
+                      key={i} 
+                      onClick={() => handleOpen3DViewer(img)}
+                      className="cursor-pointer block relative border border-slate-100 dark:border-darkborder rounded-lg overflow-hidden h-14 bg-slate-50 group"
+                    >
+                      <img src={img.startsWith('http') ? img : (img.startsWith('/uploads') ? `${API_BASE_URL}${img}` : img)} alt="Blueprint layout" className="w-full h-full object-cover group-hover:scale-110 transition duration-300" />
+                      <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition duration-200">
+                        <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-gold-600 px-1 py-0.5 rounded shadow">View 3D</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -551,6 +590,199 @@ const Projects: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3D Space & Blueprint Viewer Modal */}
+      {show3DViewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden animate-fade-in shadow-2xl text-slate-100">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-white">3D Space & Blueprint Viewer</h3>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Project Layout Visualization</p>
+              </div>
+              <button 
+                onClick={() => setShow3DViewer(false)} 
+                className="p-1.5 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tab selector */}
+            <div className="flex border-b border-slate-800 bg-slate-950/20 px-6">
+              <button 
+                type="button"
+                onClick={() => setViewerTab('3d')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition ${
+                  viewerTab === '3d' 
+                    ? 'border-gold-500 text-gold-500' 
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Interactive 3D Space Model
+              </button>
+              <button 
+                type="button"
+                onClick={() => setViewerTab('2d')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition ${
+                  viewerTab === '2d' 
+                    ? 'border-gold-500 text-gold-500' 
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                2D Blueprint Drawing
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-6 space-y-6">
+              {viewerTab === '2d' ? (
+                <div className="h-80 bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                  <img src={activeDesignImg} alt="2D Blueprint" className="max-w-full max-h-full object-contain" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* The 3D Scene */}
+                  <div className="scene-3d select-none">
+                    <div 
+                      className="room-3d"
+                      style={{
+                        transform: `rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${zoom})`
+                      }}
+                    >
+                      {/* Grid Floor */}
+                      <div className="grid-floor" />
+                      {/* Back Wall */}
+                      <div className="wall-back" />
+                      {/* Left Wall */}
+                      <div className="wall-left" />
+
+                      {/* 3D Furniture Box */}
+                      <div className="furn-cube">
+                        {['front', 'back', 'left', 'right', 'top', 'bottom'].map(face => {
+                          const matStyles: Record<string, string> = {
+                            wood: 'bg-amber-950/45 border-gold-500 text-gold-500 shadow-[0_0_12px_rgba(212,175,55,0.15)]',
+                            fabric: 'bg-sky-950/45 border-sky-500 text-sky-400 shadow-[0_0_12px_rgba(96,165,250,0.15)]',
+                            steel: 'bg-slate-700/45 border-slate-400 text-slate-300 shadow-[0_0_12px_rgba(203,213,225,0.15)]'
+                          };
+                          
+                          const wireframeStyles = wireframe 
+                            ? 'bg-transparent border-dashed border-slate-550 text-slate-500 shadow-none' 
+                            : matStyles[activeMaterial];
+
+                          return (
+                            <div 
+                              key={face} 
+                              className={`furn-face furn-${face} ${wireframeStyles}`}
+                            >
+                              {face.toUpperCase()}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Auto-rotating label overlay */}
+                    {autoRotate && (
+                      <span className="absolute top-3 right-3 text-[9px] font-bold text-gold-500 uppercase tracking-widest bg-gold-950/30 px-2 py-0.5 border border-gold-500/20 rounded-md animate-pulse">
+                        Auto Rotating
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 3D Controls Panel */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/40 p-4 border border-slate-800 rounded-xl text-xs">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Orbit Rotation X ({rotX}°)</span>
+                          <button onClick={() => setRotX(25)} className="text-[10px] text-gold-500 hover:underline">Reset</button>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="-90" 
+                          max="90" 
+                          value={rotX} 
+                          onChange={(e) => { setRotX(parseInt(e.target.value)); setAutoRotate(false); }}
+                          className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-gold-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Orbit Rotation Y ({rotY}°)</span>
+                          <button onClick={() => setRotY(-45)} className="text-[10px] text-gold-500 hover:underline">Reset</button>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="-180" 
+                          max="180" 
+                          value={rotY} 
+                          onChange={(e) => { setRotY(parseInt(e.target.value)); setAutoRotate(false); }}
+                          className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-gold-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col justify-between gap-3">
+                      {/* Toggles */}
+                      <div className="flex justify-between gap-4">
+                        <button 
+                          type="button"
+                          onClick={() => setAutoRotate(!autoRotate)}
+                          className={`flex-1 py-2 px-3 border rounded-xl font-bold transition ${
+                            autoRotate 
+                              ? 'bg-gold-600 border-gold-600 text-white shadow-sm' 
+                              : 'border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          Auto Rotate
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setWireframe(!wireframe)}
+                          className={`flex-1 py-2 px-3 border rounded-xl font-bold transition ${
+                            wireframe 
+                              ? 'bg-gold-600 border-gold-600 text-white shadow-sm' 
+                              : 'border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          Wireframe Mode
+                        </button>
+                      </div>
+
+                      {/* Material Swapper */}
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Apply Finish Material</span>
+                        <div className="flex gap-2">
+                          {[
+                            { id: 'wood', name: 'Oak Wood' },
+                            { id: 'fabric', name: 'Blue Velvet' },
+                            { id: 'steel', name: 'Brushed Steel' }
+                          ].map(mat => (
+                            <button
+                              type="button"
+                              key={mat.id}
+                              onClick={() => { setActiveMaterial(mat.id as any); setWireframe(false); }}
+                              className={`flex-1 py-1.5 px-2.5 border rounded-lg font-semibold text-[10px] transition ${
+                                activeMaterial === mat.id && !wireframe
+                                  ? 'bg-slate-800 border-gold-500/50 text-gold-400'
+                                  : 'border-slate-800 text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                              }`}
+                            >
+                              {mat.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
