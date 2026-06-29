@@ -116,6 +116,18 @@ exports.updateProduct = (req, res) => {
   }
 };
 
+exports.uploadImage = (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({ fileUrl });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 exports.deleteProduct = (req, res) => {
   try {
     const deleted = db.delete('products', req.params.id);

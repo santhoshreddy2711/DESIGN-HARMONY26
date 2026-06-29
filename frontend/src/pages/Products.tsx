@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Search, Plus, Edit2, Trash2, X, Tag, Sliders, Box } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, X, Tag, Sliders, Box, Upload, Image as ImageIcon } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 interface Product {
@@ -36,7 +36,8 @@ const Products: React.FC = () => {
     description: '',
     purchase_price: '',
     supplier_id: '',
-    reorder_level: '5'
+    reorder_level: '5',
+    image: ''
   });
 
   const loadProducts = async () => {
@@ -69,6 +70,8 @@ const Products: React.FC = () => {
     loadSuppliers();
   }, []);
 
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const handleOpenAdd = () => {
     setModalType('add');
     setFormData({
@@ -81,7 +84,8 @@ const Products: React.FC = () => {
       description: '',
       purchase_price: '',
       supplier_id: suppliers[0]?.id.toString() || '',
-      reorder_level: '5'
+      reorder_level: '5',
+      image: ''
     });
     setShowModal(true);
   };
@@ -101,7 +105,8 @@ const Products: React.FC = () => {
         description: details.description || '',
         purchase_price: details.inventory?.purchase_price?.toString() || '',
         supplier_id: details.inventory?.supplier_id?.toString() || '',
-        reorder_level: details.inventory?.reorder_level?.toString() || '5'
+        reorder_level: details.inventory?.reorder_level?.toString() || '5',
+        image: details.images?.[0] || ''
       });
       setShowModal(true);
     } catch (err) {
@@ -119,19 +124,50 @@ const Products: React.FC = () => {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    const data = new FormData();
+    data.append('image', file);
+
+    setUploadingImage(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/upload-image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('dh_token')}` },
+        body: data
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setFormData(prev => ({ ...prev, image: result.fileUrl }));
+      } else {
+        alert('Image upload failed. Ensure the file is an image under 10MB.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error uploading image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const body = {
+        ...formData,
+        images: formData.image ? [formData.image] : []
+      };
       if (modalType === 'add') {
         await apiFetch('/products', {
           method: 'POST',
-          body: JSON.stringify(formData)
+          body: JSON.stringify(body)
         });
       } else {
         if (!selectedProduct) return;
         await apiFetch(`/products/${selectedProduct.id}`, {
           method: 'PUT',
-          body: JSON.stringify(formData)
+          body: JSON.stringify(body)
         });
       }
       setShowModal(false);
@@ -377,6 +413,65 @@ const Products: React.FC = () => {
                     </div>
                   </>
                 )}
+
+                {/* Product Image Section */}
+                <div className="col-span-2 space-y-2 border-t border-slate-100 dark:border-darkborder/50 pt-4">
+                  <label className="text-xs font-semibold text-slate-500">Product Image</label>
+                  <div className="flex gap-4 items-center">
+                    {/* Preview Box */}
+                    <div className="w-24 h-24 rounded-xl border border-slate-200 dark:border-darkborder bg-slate-50 dark:bg-darkbg overflow-hidden flex items-center justify-center relative group">
+                      {formData.image ? (
+                        <>
+                          <img 
+                            src={formData.image.startsWith('http') ? formData.image : (formData.image.startsWith('/uploads') ? `${API_BASE_URL}${formData.image}` : formData.image)} 
+                            alt="Product preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({ ...formData, image: '' })}
+                            className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <ImageIcon className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                      )}
+                    </div>
+
+                    {/* Upload / Link inputs */}
+                    <div className="flex-1 space-y-2">
+                      <div className="relative border border-dashed border-slate-200 dark:border-darkborder hover:border-gold-500 dark:hover:border-gold-500 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer transition">
+                        {uploadingImage ? (
+                          <div className="w-4 h-4 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-gold-500" />
+                        )}
+                        <span className="text-xs text-slate-500 font-semibold">
+                          {uploadingImage ? 'Uploading image...' : 'Upload Image File'}
+                        </span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <input 
+                          type="text" 
+                          placeholder="Or paste external image URL..." 
+                          value={formData.image}
+                          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                          className="input-field py-1.5 text-xs" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="col-span-2 space-y-1">
                   <label className="text-xs font-semibold text-slate-500">Product Description</label>
